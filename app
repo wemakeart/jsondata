@@ -1,4 +1,4 @@
-/ three.js - https://github.com/mrdoob/three.js
+// three.js - https://github.com/mrdoob/three.js
 'use strict';var THREE=THREE||{REVISION:"56"};self.console=self.console||{info:function(){},log:function(){},debug:function(){},warn:function(){},error:function(){}};self.Int32Array=self.Int32Array||Array;self.Float32Array=self.Float32Array||Array;String.prototype.trim=String.prototype.trim||function(){return this.replace(/^\s+|\s+$/g,"")};
 THREE.extend=function(a,b){if(Object.keys)for(var c=Object.keys(b),d=0,e=c.length;d<e;d++){var f=c[d];Object.defineProperty(a,f,Object.getOwnPropertyDescriptor(b,f))}else for(f in c={}.hasOwnProperty,b)c.call(b,f)&&(a[f]=b[f]);return a};
 (function(){for(var a=0,b=["ms","moz","webkit","o"],c=0;c<b.length&&!window.requestAnimationFrame;++c)window.requestAnimationFrame=window[b[c]+"RequestAnimationFrame"],window.cancelAnimationFrame=window[b[c]+"CancelAnimationFrame"]||window[b[c]+"CancelRequestAnimationFrame"];void 0===window.requestAnimationFrame&&(window.requestAnimationFrame=function(b){var c=Date.now(),f=Math.max(0,16-(c-a)),g=window.setTimeout(function(){b(c+f)},f);a=c+f;return g});window.cancelAnimationFrame=window.cancelAnimationFrame||
@@ -704,3 +704,161 @@ r.matrixWorld),b.renderImmediateObject(k,i.__lights,null,c,r));l=b.getClearColor
 fragmentShader:"uniform lowp int renderType;\nuniform sampler2D map;\nuniform float opacity;\nuniform vec3 color;\nvarying vec2 vUV;\nvarying float vVisibility;\nvoid main() {\nif( renderType == 0 ) {\ngl_FragColor = vec4( 1.0, 0.0, 1.0, 0.0 );\n} else if( renderType == 1 ) {\ngl_FragColor = texture2D( map, vUV );\n} else {\nvec4 texture = texture2D( map, vUV );\ntexture.a *= opacity * vVisibility;\ngl_FragColor = texture;\ngl_FragColor.rgb *= color;\n}\n}"},lensFlare:{vertexShader:"uniform lowp int renderType;\nuniform vec3 screenPosition;\nuniform vec2 scale;\nuniform float rotation;\nattribute vec2 position;\nattribute vec2 uv;\nvarying vec2 vUV;\nvoid main() {\nvUV = uv;\nvec2 pos = position;\nif( renderType == 2 ) {\npos.x = cos( rotation ) * position.x - sin( rotation ) * position.y;\npos.y = sin( rotation ) * position.x + cos( rotation ) * position.y;\n}\ngl_Position = vec4( ( pos * scale + screenPosition.xy ).xy, screenPosition.z, 1.0 );\n}",
 fragmentShader:"precision mediump float;\nuniform lowp int renderType;\nuniform sampler2D map;\nuniform sampler2D occlusionMap;\nuniform float opacity;\nuniform vec3 color;\nvarying vec2 vUV;\nvoid main() {\nif( renderType == 0 ) {\ngl_FragColor = vec4( texture2D( map, vUV ).rgb, 0.0 );\n} else if( renderType == 1 ) {\ngl_FragColor = texture2D( map, vUV );\n} else {\nfloat visibility = texture2D( occlusionMap, vec2( 0.5, 0.1 ) ).a +\ntexture2D( occlusionMap, vec2( 0.9, 0.5 ) ).a +\ntexture2D( occlusionMap, vec2( 0.5, 0.9 ) ).a +\ntexture2D( occlusionMap, vec2( 0.1, 0.5 ) ).a;\nvisibility = ( 1.0 - visibility / 4.0 );\nvec4 texture = texture2D( map, vUV );\ntexture.a *= opacity * visibility;\ngl_FragColor = texture;\ngl_FragColor.rgb *= color;\n}\n}"}};THREE.ShaderSprite={sprite:{vertexShader:"uniform int useScreenCoordinates;\nuniform int sizeAttenuation;\nuniform vec3 screenPosition;\nuniform mat4 modelViewMatrix;\nuniform mat4 projectionMatrix;\nuniform float rotation;\nuniform vec2 scale;\nuniform vec2 alignment;\nuniform vec2 uvOffset;\nuniform vec2 uvScale;\nattribute vec2 position;\nattribute vec2 uv;\nvarying vec2 vUV;\nvoid main() {\nvUV = uvOffset + uv * uvScale;\nvec2 alignedPosition = position + alignment;\nvec2 rotatedPosition;\nrotatedPosition.x = ( cos( rotation ) * alignedPosition.x - sin( rotation ) * alignedPosition.y ) * scale.x;\nrotatedPosition.y = ( sin( rotation ) * alignedPosition.x + cos( rotation ) * alignedPosition.y ) * scale.y;\nvec4 finalPosition;\nif( useScreenCoordinates != 0 ) {\nfinalPosition = vec4( screenPosition.xy + rotatedPosition, screenPosition.z, 1.0 );\n} else {\nfinalPosition = projectionMatrix * modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 );\nfinalPosition.xy += rotatedPosition * ( sizeAttenuation == 1 ? 1.0 : finalPosition.z );\n}\ngl_Position = finalPosition;\n}",
 fragmentShader:"uniform vec3 color;\nuniform sampler2D map;\nuniform float opacity;\nuniform int fogType;\nuniform vec3 fogColor;\nuniform float fogDensity;\nuniform float fogNear;\nuniform float fogFar;\nuniform float alphaTest;\nvarying vec2 vUV;\nvoid main() {\nvec4 texture = texture2D( map, vUV );\nif ( texture.a < alphaTest ) discard;\ngl_FragColor = vec4( color * texture.xyz, texture.a * opacity );\nif ( fogType > 0 ) {\nfloat depth = gl_FragCoord.z / gl_FragCoord.w;\nfloat fogFactor = 0.0;\nif ( fogType == 1 ) {\nfogFactor = smoothstep( fogNear, fogFar, depth );\n} else {\nconst float LOG2 = 1.442695;\nfloat fogFactor = exp2( - fogDensity * fogDensity * depth * depth * LOG2 );\nfogFactor = 1.0 - clamp( fogFactor, 0.0, 1.0 );\n}\ngl_FragColor = mix( gl_FragColor, vec4( fogColor, gl_FragColor.w ), fogFactor );\n}\n}"}};
+
+
+var SEPARATION = 100,
+        AMOUNTX = 70,
+        AMOUNTY = 70;
+ 
+    var container;
+    var camera, scene, renderer;
+ 
+    var particles, particle, count = 0;
+ 
+    var mouseX = 85,
+        mouseY = -42;
+ 
+    var windowHalfX = window.innerWidth / 25;
+    var windowHalfY = window.innerHeight / 25;
+ 
+    init();
+    animate();
+ 
+    function init() {
+        var wholew = document.getElementById("whole-wrapper-inner");
+        container = document.createElement('div');
+        wholew.appendChild(container);
+ 
+        camera = new THREE.PerspectiveCamera(1000, window.innerWidth / window.innerHeight, 1, 10000);
+        camera.position.z = 1000;
+ 
+        scene = new THREE.Scene();
+ 
+        particles = new Array();
+ 
+        var PI2 = Math.PI * 2;
+        var material = new THREE.ParticleCanvasMaterial({
+ 
+            color: 0xFF001f12,
+            program: function(context) {
+ 
+                context.beginPath();
+                context.arc(0, 0, .6, 0, PI2, true);
+                context.fill();
+ 
+            }
+ 
+        });
+ 
+        var i = 0;
+ 
+        for (var ix = 0; ix < AMOUNTX; ix++) {
+ 
+            for (var iy = 0; iy < AMOUNTY; iy++) {
+ 
+                particle = particles[i++] = new THREE.Particle(material);
+                particle.position.x = ix * SEPARATION - ((AMOUNTX * SEPARATION) / 2);
+                particle.position.z = iy * SEPARATION - ((AMOUNTY * SEPARATION) / 2);
+                scene.add(particle);
+ 
+            }
+ 
+        }
+ 
+        renderer = new THREE.CanvasRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+ 
+        document.addEventListener('mousemove', onDocumentMouseMove, false);
+        document.addEventListener('touchstart', onDocumentTouchStart, false);
+        document.addEventListener('touchmove', onDocumentTouchMove, false);
+ 
+        //
+ 
+        window.addEventListener('resize', onWindowResize, false);
+ 
+    }
+ 
+    function onWindowResize() {
+ 
+        windowHalfX = window.innerWidth / 2;
+        windowHalfY = window.innerHeight / 2;
+ 
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+ 
+        renderer.setSize(window.innerWidth, window.innerHeight);
+ 
+    }
+ 
+    //
+ 
+    function onDocumentMouseMove(event) {
+ 
+        mouseX = event.clientX - windowHalfX;
+        mouseY = event.clientY - windowHalfY;
+ 
+    }
+ 
+    function onDocumentTouchStart(event) {
+ 
+        if (event.touches.length === 1) {
+ 
+            event.preventDefault();
+ 
+            mouseX = event.touches[0].pageX - windowHalfX;
+            mouseY = event.touches[0].pageY - windowHalfY;
+ 
+        }
+ 
+    }
+ 
+    function onDocumentTouchMove(event) {
+ 
+        if (event.touches.length === 1) {
+ 
+            event.preventDefault();
+ 
+            mouseX = event.touches[0].pageX - windowHalfX;
+            mouseY = event.touches[0].pageY - windowHalfY;
+ 
+        }
+ 
+    }
+ 
+    //
+ 
+    function animate() {
+ 
+        requestAnimationFrame(animate);
+ 
+        render();
+ 
+ 
+    }
+ 
+    function render() {
+ 
+        camera.position.x += (mouseX - camera.position.x) * .04;
+        camera.position.y += (-mouseY - camera.position.y) * .04;
+        camera.lookAt(scene.position);
+ 
+        var i = 0;
+ 
+        for (var ix = 0; ix < AMOUNTX; ix++) {
+ 
+            for (var iy = 0; iy < AMOUNTY; iy++) {
+ 
+                particle = particles[i++];
+                particle.position.y = (Math.sin((ix + count) * 0.3) * 50) + (Math.sin((iy + count) * 0.5) * 50);
+                particle.scale.x = particle.scale.y = (Math.sin((ix + count) * 0.3) + 1) * 2 + (Math.sin((iy + count) * 0.5) + 1) * 2;
+ 
+            }
+ 
+        }
+ 
+        renderer.render(scene, camera);
+ 
+        count += 0.1;
+ 
+    }
